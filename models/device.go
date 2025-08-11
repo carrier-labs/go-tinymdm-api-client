@@ -58,6 +58,51 @@ func (n *NullableInt64) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("NullableInt64: cannot unmarshal %s", string(data))
 }
 
+// NullableTime handles time fields that may be null, empty, or in various string formats in JSON.
+type NullableTime struct {
+	Time  time.Time
+	Valid bool
+}
+
+func (nt *NullableTime) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" || string(data) == "\"\"" {
+		nt.Valid = false
+		nt.Time = time.Time{}
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		if s == "" {
+			nt.Valid = false
+			nt.Time = time.Time{}
+			return nil
+		}
+		// Try "2006-01-02 15:04:05" format
+		t, err := time.Parse("2006-01-02 15:04:05", s)
+		if err == nil {
+			nt.Time = t
+			nt.Valid = true
+			return nil
+		}
+		// Try RFC3339
+		t, err = time.Parse(time.RFC3339, s)
+		if err == nil {
+			nt.Time = t
+			nt.Valid = true
+			return nil
+		}
+		return fmt.Errorf("NullableTime: cannot parse time string '%s'", s)
+	}
+	return fmt.Errorf("NullableTime: cannot unmarshal %s", string(data))
+}
+
+func (nt NullableTime) MarshalJSON() ([]byte, error) {
+	if !nt.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(nt.Time.Format("2006-01-02 15:04:05"))
+}
+
 type Device struct {
 	ID                             string                `json:"id"`
 	Name                           string                `json:"name"`
@@ -79,12 +124,12 @@ type Device struct {
 	Manufacturer                   string                `json:"manufacturer"`
 	TinyMDMAppVersion              TinyMDMAppVersion     `json:"tinymdm_app_version"`
 	EnrollmentTimestamp            int64                 `json:"enrollment_timestamp"`
-	LastLockRequestDate            time.Time             `json:"last_lock_request_date"`
-	LastRebootRequestDate          time.Time             `json:"last_reboot_request_date"`
-	LastChangePasswordRequestDate  time.Time             `json:"last_change_password_request_date"`
-	LastDeletePasswordRequestDate  time.Time             `json:"last_delete_password_request_date"`
-	LastMessageSentRequestDate     time.Time             `json:"last_message_sent_request_date"`
-	LastWipeRequestDate            time.Time             `json:"last_wipe_request_date"`
+	LastLockRequestDate            NullableTime          `json:"last_lock_request_date"`
+	LastRebootRequestDate          NullableTime          `json:"last_reboot_request_date"`
+	LastChangePasswordRequestDate  NullableTime          `json:"last_change_password_request_date"`
+	LastDeletePasswordRequestDate  NullableTime          `json:"last_delete_password_request_date"`
+	LastMessageSentRequestDate     NullableTime          `json:"last_message_sent_request_date"`
+	LastWipeRequestDate            NullableTime          `json:"last_wipe_request_date"`
 	LastSyncTimestamp              int64                 `json:"last_sync_timestamp"`
 	LockAcknowledgeTime            NullableInt64         `json:"lock_acknowledge_time"`
 	RebootAcknowledgeTime          NullableInt64         `json:"reboot_acknowledge_time"`
