@@ -7,11 +7,11 @@ import (
 )
 
 type GeolocationPosition struct {
-	Address   string    `json:"address"`
-	Date      time.Time `json:"date"`
-	Latitude  float64   `json:"latitude"`
-	Longitude float64   `json:"longitude"`
-	Timestamp int64     `json:"timestamp"`
+	Address   string       `json:"address"`
+	Date      NullableTime `json:"date"`
+	Latitude  float64      `json:"latitude"`
+	Longitude float64      `json:"longitude"`
+	Timestamp int64        `json:"timestamp"`
 }
 
 type TinyMDMAppVersion string
@@ -58,6 +58,15 @@ func (n *NullableInt64) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("NullableInt64: cannot unmarshal %s", string(data))
 }
 
+// nullableTimeLayouts are the timestamp formats TinyMDM is known to return,
+// tried in order. Note "02-01-2006 15:04:05" is day-first (DD-MM-YYYY), which
+// is what geolocation positions use, e.g. "26-05-2026 12:31:57".
+var nullableTimeLayouts = []string{
+	time.RFC3339,
+	"2006-01-02 15:04:05",
+	"02-01-2006 15:04:05",
+}
+
 // NullableTime handles time fields that may be null, empty, or in various string formats in JSON.
 type NullableTime struct {
 	Time  time.Time
@@ -77,19 +86,16 @@ func (nt *NullableTime) UnmarshalJSON(data []byte) error {
 			nt.Time = time.Time{}
 			return nil
 		}
-		// Try "2006-01-02 15:04:05" format
-		t, err := time.Parse("2006-01-02 15:04:05", s)
-		if err == nil {
-			nt.Time = t
-			nt.Valid = true
-			return nil
-		}
-		// Try RFC3339
-		t, err = time.Parse(time.RFC3339, s)
-		if err == nil {
-			nt.Time = t
-			nt.Valid = true
-			return nil
+		// TinyMDM is inconsistent about date formats across fields, so try
+		// each known layout. Be liberal in what we accept; emit canonical
+		// RFC3339 on the way out (see MarshalJSON).
+		for _, layout := range nullableTimeLayouts {
+			t, err := time.Parse(layout, s)
+			if err == nil {
+				nt.Time = t
+				nt.Valid = true
+				return nil
+			}
 		}
 		return fmt.Errorf("NullableTime: cannot parse time string '%s'", s)
 	}
@@ -100,7 +106,7 @@ func (nt NullableTime) MarshalJSON() ([]byte, error) {
 	if !nt.Valid {
 		return []byte("null"), nil
 	}
-	return json.Marshal(nt.Time.Format("2006-01-02 15:04:05"))
+	return json.Marshal(nt.Time.Format(time.RFC3339))
 }
 
 type Device struct {
