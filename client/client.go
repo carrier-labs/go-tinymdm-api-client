@@ -15,6 +15,17 @@ import (
 
 const DefaultBaseAPI = "https://www.tinymdm.net/api/v1/"
 
+// APIError is returned by DoRequest for non-2xx responses, exposing the HTTP
+// status code so callers can react to specific cases (e.g. 429 rate limiting).
+type APIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("API error: %s", e.Body)
+}
+
 type Config struct {
 	PublicKey string
 	SecretKey string
@@ -90,7 +101,7 @@ func (c *Client) DoRequest(ctx context.Context, method, endpoint string, body in
 	debug.Debug("[TinyMDM] Response status", "status", resp.Status)
 	if resp.StatusCode >= 400 {
 		debug.Debug("[TinyMDM] Error response body", "body", string(respBody))
-		return nil, fmt.Errorf("API error: %s", respBody)
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 	return respBody, nil
 }

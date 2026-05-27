@@ -55,3 +55,25 @@ func (s *DeviceService) GetDevices(ctx context.Context, params *DeviceListParams
 	}
 	return resp.Results, resp.Count, resp.Previous, resp.Next, nil
 }
+
+// GetDevice fetches a single device by ID.
+func (s *DeviceService) GetDevice(ctx context.Context, deviceID string) (*models.Device, error) {
+	respBody, err := s.Client.DoRequest(ctx, "GET", "devices/"+deviceID, nil)
+	if err != nil {
+		return nil, err
+	}
+	var device models.Device
+	if err := json.Unmarshal(respBody, &device); err != nil {
+		return nil, fmt.Errorf("decode device: %w", err)
+	}
+	return &device, nil
+}
+
+// RefreshLocation asks TinyMDM to have the device report its latest location
+// points. The response has no content; the updated points appear on a
+// subsequent GetDevice/GetDevices call. TinyMDM rate-limits this to 1 call per
+// hour per device, and requires geolocation to be enabled on the device.
+func (s *DeviceService) RefreshLocation(ctx context.Context, deviceID string) error {
+	_, err := s.Client.DoRequest(ctx, "GET", "devices/"+deviceID+"/refresh_location", nil)
+	return err
+}
