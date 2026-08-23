@@ -24,5 +24,8 @@ links:
 tags: [shared, go]
 ---
 
-Shared Go client for TinyMDM. Feeds AMP's cost-replacement case. Untouched since May; AMP is
-winding down, so confirm this still has a purpose.
+Shared Go client for TinyMDM.
+
+**Load-bearing:** a dependency of `1472_switchkiosks`, which is deployed in stores and earning.
+It was originally written for AMP's cost-replacement case; AMP was archived 2026-08-21, but this
+library is still in live use and is not orphaned.
